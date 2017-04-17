@@ -8,47 +8,41 @@
 
 -module(frequency).
 -export([start/0,allocate/0,deallocate/1,stop/0]).
-%%BEGIN-ASSIGNMENT
--export([inject/1,loop/1]).
-%%END-ASSIGNMENT
--export([init/0]).
+-export([init/1]).
 
 %% These are the start functions used to create and
 %% initialize the server.
 
 start() ->
     register(frequency,
-	     spawn(frequency, init, [])).
+	     spawn(frequency, init, [[10,11,12,13,14,15]])).
 
-init() ->
-  Frequencies = {get_frequencies(), []},
-  frequency:loop(Frequencies).
+init(AvailableFrequencies) ->
+%%BEGIN-ASSIGNMENT
+  %Frequencies = {get_frequencies(), []},
+  Frequencies = {AvailableFrequencies, []},
+%%END-ASSIGNMENT
+  loop(Frequencies).
 
+%%BEGIN-ASSIGNMENT
 % Hard Coded
-get_frequencies() -> [10,11,12,13,14,15].
+%get_frequencies() -> [10,11,12,13,14,15].
+%%END-ASSIGNMENT
 
 %% The Main Loop
 
 loop(Frequencies) ->
-  io:format("~p new server in loop~n", [self()]),
   receive
     {request, Pid, allocate} ->
       {NewFrequencies, Reply} = allocate(Frequencies, Pid),
       Pid ! {reply, Reply},
-      frequency:loop(NewFrequencies);
+      loop(NewFrequencies);
     {request, Pid , {deallocate, Freq}} ->
       NewFrequencies = deallocate(Frequencies, Freq),
       Pid ! {reply, ok},
-      frequency:loop(NewFrequencies);
+      loop(NewFrequencies);
     {request, Pid, stop} ->
-      Pid ! {reply, stopped};
-%%BEGIN-ASSIGNMENT
-    {request, Pid , {inject, AdditionalFrequencies}} ->
-      Pid ! {reply, ok},
-      frequency:loop(injectFrequencies(Frequencies, AdditionalFrequencies))
-    after 5000 ->
-      frequency:loop(Frequencies)
-%%END-ASSIGNMENT
+      Pid ! {reply, stopped}
   end.
 
 %% Functional interface
@@ -71,13 +65,6 @@ stop() ->
 	    {reply, Reply} -> Reply
     end.
 
-%%BEGIN-ASSIGNMENT
-inject(Frequencies) ->
-    frequency ! { request, self(), {inject, Frequencies}},
-    receive 
-	    {reply, Reply} -> Reply
-    end.
-%%END-ASSIGNMENT
 
 %% The Internal Help Functions used to allocate and
 %% deallocate frequencies.
@@ -90,8 +77,3 @@ allocate({[Freq|Free], Allocated}, Pid) ->
 deallocate({Free, Allocated}, Freq) ->
   NewAllocated=lists:keydelete(Freq, 1, Allocated),
   {[Freq|Free],  NewAllocated}.
-
-%%BEGIN-ASSIGNMENT
-injectFrequencies({Free, Allocated}, AdditionalFrequencies) ->
-  {Free ++ AdditionalFrequencies, Allocated}.
-%%END-ASSIGNMENT
